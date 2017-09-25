@@ -8,7 +8,7 @@
 # Signature: mysignature.sig
 # Data to Encrypt: to_be_encrypted.txt
 
-now=date(date +"(%Y-%M-%D)")
+date=`date +%Y-%m-%d`
 dirname="$date-aes-test"
 echo "Making a new directory: $dirname"
 mkdir $dirname;
