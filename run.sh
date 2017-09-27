@@ -20,56 +20,50 @@ date=`date +%Y-%m-%d`
 
 # Make Private Keys
 echo "Generating Bobs Private Keys"
-cd bob/
-openssl genrsa > bobprivate.key
-cat bobprivate.key
+openssl genrsa > bob/bobprivate.key
+cat bob/bobprivate.key
 echo "Generating Bobs Public Key using Bobs Private Key"
-openssl rsa -in bobprivate.key -pubout -out bobpublic.pem
-cat bobpublic.pem
-cd ../
+openssl rsa -in bob/bobprivate.key -pubout -out bob/bobpublic.pem
+cat bob/bobpublic.pem
 
 echo "Generating Alice Private Keys"
-cd alice/
-openssl genrsa > aliceprivate.key
-cat aliceprivate.key
+openssl genrsa > alice/aliceprivate.key
+cat alice/aliceprivate.key
 echo "Generating Alices Public Key using Alices Private Key"
-openssl rsa -in aliceprivate.key -pubout -out alicepublic.pem
-cat alicepublic.pem
-cd ../
+openssl rsa -in alice/aliceprivate.key -pubout -out alice/alicepublic.pem
+cat alice/alicepublic.pem
 
 echo "Proceeding assuming that Bob will be sending a file to alice"
-cd bob
 
 phrase_to_encrypt="To be or not to be, that is the question"
 
 # Make File to Encrypt
 echo "Encrypting the following phrase: $phrase_to_encrypt"
-echo $phrase_to_encrypt >> to_be_encrypted.txt
+echo $phrase_to_encrypt >> bob/to_be_encrypted.txt
 
 # Create Signature (With Private Key)
 echo "Creating a signature (with our private key) to verify file integrity"
-openssl dgst -sha256 -sign bobprivate.key -out bobsignature.sig to_be_encrypted.txt
-cat bobsignature.sig
+openssl dgst -sha256 -sign bob/bobprivate.key -out bob/signature.txt.sha256 bob/to_be_encrypted.txt 
+cat bob/signature.txt.sha256
 
 # Base 64 Encode Signature (For Better Transport)
 echo "Base 64 Encoding Signature for easier transport"
-base64 < bobsignature.sig > bobsignature.sigb64
-cat bobsignature.sigb64
+base64 < bob/signature.txt.sha256 > bob/bobsignature.sigb64
+cat bob/bobsignature.sigb64
 
 # Encrypt File
 echo "Encrypting file: "
-openssl enc -aes-256-cbc -salt -in to_be_encrypted.txt -out encrypted.enc -pass file:../alice/alicepublic.pem
-cat encrypted.enc
+openssl rsautl -encrypt -pubin -inkey ./alice/alicepublic.pem -in bob/to_be_encrypted.txt -out bob/encrypted.enc.txt
+cat bob/encrypted.enc.txt
 
-echo "Files Emailed to Alice: encrypted.enc bobsignature.sig"
-
-cd ../
-cd alice
-
-# Confirm Authenticity (With Signers Public Key, Sig)
-#echo "Alice Confirming Authenticity Using Public Key and Signature"
-openssl dgst -sha256 -verify ../bob/bobpublic.pem -signature ../bob/bobsignature.sig ../bob/to_be_encrypted.txt
+echo "Files Emailed to Alice: encrypted.enc bobsignature.sigb64"
 
 # Decrypt the file
-openssl enc -d -aes-256-cbc -in ../bob/encrypted.enc -out decrypted.txt -pass file:aliceprivate.key
+echo "Decrypting File: (Using Alices Private Key)"
+openssl rsautl -decrypt -inkey ./alice/aliceprivate.key -in bob/encrypted.enc.txt > alice/decrypted.txt
 
+cat alice/decrypted.txt
+
+# Confirm Authenticity (With Signers Public Key, Sig)
+echo "Alice Confirming Authenticity Using Public Key and Signature"
+openssl dgst -sha256 -verify bob/bobpublic.pem -signature bob/signature.txt.sha256 alice/decrypted.txt
